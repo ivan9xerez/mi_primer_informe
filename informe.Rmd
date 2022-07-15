@@ -1,0 +1,147 @@
+---
+title: "Mi primer informe"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+  pdf_document:
+    toc: true
+    toc_depth: 3
+  word_document:
+    toc: true
+    toc_depth: 3
+date: '14/07/2022'
+bibliography: references.bib
+csl: vancouver.csl
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(gtsummary)
+library(ggplot2)
+library(dplyr)
+library(readxl)
+library(graphics)
+library(sf)
+library(flextable)
+
+
+trial <- read_excel("trial.xlsx")
+
+trial$response <- as.character(trial$response)
+trial$death <- as.character(trial$death)
+
+trial <- read_excel("trial.xlsx",
+                  col_types = c("text", 
+                  "text", "numeric", "numeric", "text", 
+                  "text", "text", "text", "numeric"))
+
+colnames(trial)[1]<- "id"
+attr(trial$trt, "label") <- "Tratamiento"
+attr(trial$age, "label") <- "Edad"
+attr(trial$marker, "label") <- "Marcadores tumorales ng/mL"
+attr(trial$stage, "label") <- "Estadio"
+attr(trial$grade, "label") <- "Grado"
+attr(trial$response, "label") <- "Respuesta tumoral"
+attr(trial$death, "label") <- "Resultado final del seguimiento"
+attr(trial$ttdeath, "label") <- "Tiempo del seguimiento en meses"
+
+
+trial2 <- trial %>% 
+  select(trt,death) %>% 
+  mutate(death = replace(death, death == 0, "Vivo")) %>% 
+  mutate(death = replace(death, death == 1, "Fallecido")) %>% 
+  group_by(trt,death) %>% 
+  summarise(casos = n())
+
+# Cargamos los datos shapefile de Andalucia
+f1 <- read_sf(dsn=".", layer="14_01_CtxLimites")
+
+cod_ine_and <- c('04','11','14','18','21','23','29','41')
+
+m1 <- 
+    f1 %>% 
+      filter(pais == "España") %>% 
+      filter(tipo_dem == "Provincia") %>% 
+      filter(cod_ine %in% cod_ine_and)
+
+d1 <- read_excel("Libro4.xlsx",
+                      col_types = c("text", 
+                      "text", "numeric"))
+
+colnames(d1)[1] <- "cod_ine"
+m2 <- merge(m1, d1, by = 'cod_ine')
+
+
+```
+
+## R Markdown
+
+### Mi primer gráfico
+
+Mi primera citacion [@Torreglosa-Hernández2022]
+
+```{r echo=FALSE, fig.align='center'}
+
+ggplot(trial2) +
+  aes(x = trt, y = casos) +
+  geom_col(fill = "#112446") +
+  labs(
+    x = "Tratamiento",
+    y = "Nº de casos",
+    title = "Distribución de casos al final del tratamiento",
+    subtitle = "Tratamiento,
+    resultado al final"
+  ) +
+  theme_bw() +
+  facet_wrap(vars(death))
+```
+
+### Mi primera tabla incluyendo test de hipótesis
+
+```{r echo=FALSE, fig.align='center'}
+trial %>% 
+  select(-id) %>% 
+  mutate(response = replace(response, response == '1.0', "Positiva")) %>% 
+  mutate(response = replace(response, response == '0.0', "Negativa")) %>% 
+  mutate(death = replace(death, death == '1.0', "Fallecido")) %>% 
+  mutate(death = replace(death, death == '0.0', "Vivo")) %>% 
+  gtsummary::tbl_summary(by = trt) %>% 
+  add_n() %>% 
+  add_p() %>% 
+  as_flex_table()
+```
+
+### Grafico diagrama de cajas
+
+```{r echo=FALSE, fig.align='center'}
+boxplot(ttdeath~death, data=trial, id=list(method="y"))
+```
+
+### Grafico de supervivencia
+
+```{r grafico de supervivencia, echo=FALSE}
+
+```
+
+### Grafico Tasa Andalucía (datos aleatorios)
+
+ref 3 [@rebasa2005conceptos]
+
+ref 4 doi [@clèries2020]
+
+ref 5 zotero [@nakamura2021]
+
+cita paquete [@ggplot2]
+
+```{r grafico datos andalucia, echo=FALSE, fig.align='center'}
+ggplot(m2) +
+  aes(fill = tasa, group = tipo_dem) +
+  geom_sf(size = 1.2) +
+  geom_sf_label(aes(label = nombre)) +
+  scale_fill_gradient(low = "#50DA17", high = "#F60E0E") +
+  theme_minimal()
+```
+
+### Bibliografía
